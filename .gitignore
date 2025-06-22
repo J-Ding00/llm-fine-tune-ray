@@ -1,0 +1,24 @@
+# General
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+venv/
+.env
+
+# Data
+data/
+
+# Eval
+eval/
+
+# Model
+models/
+
+# Predict
+predictions/
+
+# Logs
+wandb/

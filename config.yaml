@@ -1,0 +1,123 @@
+openai:
+  generate_model: gpt-4o-mini
+  eval_model: gpt-4o
+
+raw_transcripts_gen:
+  minority_criteria_persona:
+    formality: a casual blogger who uses slang, contractions, or informal tone even in serious topics, 
+    persuasiveness: a passive commentator who presents weak arguments without clear evidence or confidence,
+    filler words: a rambling writer who uses repetitive, vague phrasing or redundant connectors,
+    transition logic: A disorganized writer whose paragraphs jump between ideas without clear transitions or structure
+  num_samples: 50
+  output_folder: data/raw/generated
+  temperature: 1
+  max_tokens: 1000
+
+webtext_load:
+  num_samples: 1000
+  raw_output_file: data/raw/openwebtext_sample.jsonl
+
+gpt_data_label:
+  max_eval_tokens: 500
+  webtext_label_output_file: data/labeled/label_openwebtext_sample.jsonl
+  generated_label_output_folder: data/labeled/generated
+
+pretrain_model:
+  model: Qwen/Qwen2.5-0.5B-Instruct
+  quantization: True
+  eval: 
+    input_test_path: data/test/clean_label_all_sample_test.jsonl
+    pretrain_output: predictions/pretrain_all_sample.jsonl
+    max_eval_tokens: 500
+
+fine_tune:
+  output_dir: output
+
+data_process:
+  criteria: [formality, persuasiveness, enthusiasm, empathy, filler words, transition logic]
+
+data_split:
+  input: data/labeled/clean_label_all_sample.jsonl
+  output_dir: data
+  stratified_criteria: [formality, enthusiasm, empathy]
+  threshold: 6
+  train_ratio: 0.8
+  val_ratio: 0.1
+
+preprocess:
+  tokenizer: Qwen/Qwen2.5-0.5B-Instruct
+  min_words: 300
+  max_words: 1000
+
+evaluation:
+  # jsonl_format_in: 
+  #   [data/labeled/label_openwebtext_sample.jsonl,
+  #   data/labeled/generated/label_generated_bad_transition_logic.jsonl,
+  #   data/labeled/generated/label_generated_bad_formality.jsonl,
+  #   data/labeled/generated/label_generated_bad_persuasion.jsonl,
+  #   data/labeled/generated/label_generated_bad_filler_words.jsonl]
+  mse: True
+  # jsonl_format_in: [predictions/pretrain_all_sample_quantized.jsonl, predictions/fine_tune_pred_epoch1.jsonl, predictions/fine_tune_pred_epoch2.jsonl, predictions/fine_tune_pred_epoch3.jsonl, data/test/clean_label_all_sample_test.jsonl]
+  jsonl_format_in: [predictions/pretrain_all_sample_quantized.jsonl, data/test/clean_label_all_sample_test.jsonl]
+  jsonl_generated_data_in: data/labeled/generated
+  jsonl_format_out: eval/json_evaluation_metrics_pretrained_bert.txt
+  jsonl_generated_data_out: eval/json_generated_evaluation_metrics.txt
+  clean_webtext_data_out: data/labeled/clean_label_openwebtext_sample.jsonl
+  clean_generated_data_out: data/labeled/clean_label_generated_sample.jsonl
+  clean_data_out: data/labeled/clean_label_all_sample.jsonl
+  score_threshold: [6]
+
+openai:
+  generate_model: gpt-4o-mini
+  eval_model: gpt-4o
+
+load_data:
+  n_samples: 1000
+  raw_path: data/raw/webtext/openwebtext_sample.jsonl
+  hf_streaming_name: stas/openwebtext-10k
+  hf_split: train
+
+clean_data:
+  webtext:
+    input_folder_list: [data/labeled/webtext]
+    output_path: data/labeled/clean_label_openwebtext_sample.jsonl
+  generated:
+    input_folder_list: [data/labeled/generated]
+    output_path: data/labeled/clean_label_generated_sample.jsonl
+  combined:
+    input_folder_list: [data/labeled/webtext, data/labeled/generated]
+    output_path: data/labeled/clean_label_all_sample.jsonl
+
+split_data:
+  input: data/labeled/clean_label_all_sample.jsonl
+  output_dir: data
+  stratified_criteria: [formality, enthusiasm, empathy]
+  threshold: 6
+  train_ratio: 0.8
+  val_ratio: 0.1
+
+raw_transcripts_gen:
+  num_samples: 50
+  output_folder: data/raw/generated
+
+gt_label:
+  webtext:
+    input_folder: data/raw/webtext
+    output_folder: data/labeled/webtext
+  generated:
+    input_folder: data/raw/generated
+    output_folder: data/labeled/generated
+
+llm_label:
+  model: Qwen/Qwen2.5-0.5B-Instruct
+  adapter: False
+  use_ray: False
+  input_test_path: data/test/clean_label_all_sample_test.jsonl
+  pretrain:
+    output_folder: predictions/pretrain
+  fine_tune:
+    input_adapter_folder: models/
+    output_folder: predictions/fine_tune
+  
+
+criteria: [formality, persuasiveness, enthusiasm, empathy, filler words, transition logic]

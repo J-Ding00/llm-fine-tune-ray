@@ -1,0 +1,18 @@
+openai
+python-dotenv
+pyyaml
+datasets
+scikit-learn
+transformers
+torch
+peft
+bitsandbytes
+wandb
+bert-score
+
+# model specific
+accelerate
+
+# ray
+ray[data,train,tune,serve]
+vllm==0.7.2
