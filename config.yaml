@@ -58,7 +58,7 @@ evaluation:
   #   data/labeled/generated/label_generated_bad_filler_words.jsonl]
   mse: True
   # jsonl_format_in: [predictions/pretrain_all_sample_quantized.jsonl, predictions/fine_tune_pred_epoch1.jsonl, predictions/fine_tune_pred_epoch2.jsonl, predictions/fine_tune_pred_epoch3.jsonl, data/test/clean_label_all_sample_test.jsonl]
-  jsonl_format_in: [predictions/pretrain_all_sample_quantized.jsonl, data/test/clean_label_all_sample_test.jsonl]
+  jsonl_format_in: [predictions/pretrain/pretrain_predictions.jsonl, data/test/clean_label_all_sample_test.jsonl]
   jsonl_generated_data_in: data/labeled/generated
   jsonl_format_out: eval/json_evaluation_metrics_pretrained_bert.txt
   jsonl_generated_data_out: eval/json_generated_evaluation_metrics.txt
@@ -109,9 +109,9 @@ gt_label:
     output_folder: data/labeled/generated
 
 llm_label:
-  model: Qwen/Qwen2.5-0.5B-Instruct
+  model: Qwen/Qwen2.5-3B-Instruct
   adapter: False
-  use_ray: False
+  use_ray: True
   input_test_path: data/test/clean_label_all_sample_test.jsonl
   pretrain:
     output_folder: predictions/pretrain

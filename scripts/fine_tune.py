@@ -76,22 +76,32 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     max_new_tokens = config['pretrain_model']['eval']["max_eval_tokens"]
 
+    # lora_config = LoraConfig(
+    #     r=8,
+    #     lora_alpha=32,
+    #     target_modules='all-linear',
+    #     lora_dropout=0.05,
+    #     bias="none",
+    #     task_type=TaskType.CAUSAL_LM,
+    # )
+
     lora_config = LoraConfig(
-        r=8,
-        lora_alpha=32,
-        target_modules='all-linear',
-        lora_dropout=0.05,
+        r=16,
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        lora_alpha=16,
+        lora_dropout=0.0,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
     )
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
-    )
 
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", quantization_config=quantization_config)
+    # quantization_config = BitsAndBytesConfig(
+    #     load_in_4bit=True,
+    #     bnb_4bit_quant_type="nf4",
+    #     bnb_4bit_compute_dtype=torch.float16,
+    # )
+
+    # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto",)
     model = get_peft_model(model, lora_config)
 
     # Load your dataset (e.g., JSONL -> Dataset)
@@ -130,20 +140,23 @@ if __name__ == "__main__":
         output_dir=out_dir,
         num_train_epochs=3,
         per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=1,
         learning_rate=1e-4,
         logging_steps=20,
         save_strategy='epoch',
         save_total_limit=3,
         warmup_ratio=0.05,
-        fp16=True,
-        bf16=False,
+        fp16=False,
+        bf16=True,
         dataloader_num_workers=4,
         prediction_loss_only=True,
         eval_strategy="steps",
         eval_steps=120,
         report_to="wandb",
-        run_name="qlora-qwen-finetune",
+        run_name="qlora-llama3-finetune",
+        seed=42,
+        gradient_checkpointing=True,
     )
 
     # Trainer

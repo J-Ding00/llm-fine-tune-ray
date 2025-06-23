@@ -5,6 +5,7 @@ from tqdm import tqdm
 # from utils.utils import ray_data_step_logger
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
+import ray
 
 def build_prompt(text, criteria, criteria_format):
     instruction = f"""
@@ -38,30 +39,32 @@ def generate_local_feedback(model, tokenizer, text, criteria, criteria_format):
     decoded = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return decoded
 
-def label_batch_local(input_path, output_path, criteria, model_name, tokenizer):
-    # Local batch eval
+@ray.remote(num_gpus=1)
+def label_batch_local(input_path, criteria, model_name, tokenizer):
+    
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype="auto",
-        device_map="auto"
+        device_map="auto",
     )
     with open(input_path, "r") as f:
         lines = [json.loads(l) for l in f if l.strip()]
     criteria_format = {c: {"score": "<int>", "feedback": "<string>"} for c in criteria}
-    with open(output_path, "w") as fout:
-        for example in tqdm(lines, desc="Labeling samples (local)"):
-            transcript = example["text"]
-            try:
-                feedback = generate_local_feedback(model, tokenizer, transcript, criteria, criteria_format)
-                labeled = {"text": transcript, "label": feedback}
-                fout.write(json.dumps(labeled, ensure_ascii=False) + "\n")
-            except Exception:
-                print("[Error] Skipping sample")
+    results = []
+    for example in tqdm(lines, desc="Labeling samples (local)"):
+        transcript = example["text"]
+        try:
+            feedback = generate_local_feedback(model, tokenizer, transcript, criteria, criteria_format)
+            labeled = {"text": transcript, "label": feedback, "id":example["id"]}
+            results.append(labeled)
+        except Exception:
+            print("[Error] Skipping sample")
+    return results
 
 def label_batch_local_lora(input_path, output_path, criteria, model_name, adapter_path, tokenizer):
     from peft import PeftModel
     import torch
-    base_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto")
+    base_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto",)
     model = PeftModel.from_pretrained(base_model, adapter_path)
     with open(input_path, "r") as f:
         lines = [json.loads(l) for l in f if l.strip()]
@@ -76,45 +79,40 @@ def label_batch_local_lora(input_path, output_path, criteria, model_name, adapte
             except Exception:
                 print("[Error] Skipping sample")
 
-def label_batch_ray(input_path, output_path, criteria, model_name, tokenizer):
+def label_batch_ray(input_path, output_path, criteria, model_name):
     import ray
     from ray.data.llm import build_llm_processor, vLLMEngineProcessorConfig
-    ray.init()
     criteria_format = {c: {"score": "<int>", "feedback": "<string>"} for c in criteria}
     with open(input_path, "r") as f:
         lines = [json.loads(l) for l in f if l.strip()]
-    prompts = [
-        {"prompt": tokenizer.apply_chat_template(
-            build_prompt(example["text"], criteria, criteria_format),
-            tokenize=False,
-            add_generation_prompt=True
-        ), "text": example["text"]} for example in lines
-    ]
+
+    prompts = [{"text": example["text"], "id": example["id"]} for example in lines]
+
+    def preprocess(row):
+        return dict(
+            messages=build_prompt(row['text'], criteria, criteria_format),
+            sampling_params=dict(
+                temperature=0.2,
+                max_tokens=512,
+            )
+        )
+
     processor_config = vLLMEngineProcessorConfig(
         model_source=model_name,
         engine_kwargs={
             "enable_chunked_prefill": True,
-            "max_num_batched_tokens": 4096,
-            "max_model_len": 4096,
+            "max_num_batched_tokens": 16384, #8192
         },
         concurrency=1,
         batch_size=8,
     )
     processor = build_llm_processor(
         processor_config,
-        preprocess=lambda row: dict(
-            messages=[
-                {"role": "system", "content": "You are an expert speech evaluator."},
-                {"role": "user", "content": row["prompt"]},
-            ],
-            sampling_params=dict(
-                temperature=0.2,
-                max_tokens=512,
-            )
-        ),
+        preprocess=preprocess,
         postprocess=lambda row: dict(
             answer=row["generated_text"],
             text=row["text"],
+            id=row['id'],
         ),
     )
     ds = ray.data.from_items(prompts)
@@ -122,7 +120,7 @@ def label_batch_ray(input_path, output_path, criteria, model_name, tokenizer):
     ds = ds.materialize()
     with open(output_path, "w") as fout:
         for out in ds.take_all():
-            fout.write(json.dumps({"text": out["text"], "label": out["answer"]}, ensure_ascii=False) + "\n")
+            fout.write(json.dumps({"text": out["text"], "label": out["answer"], "id":out['id']}) + "\n")
     ray.shutdown()
 
 def label_batch_ray_lora(input_path, output_path, criteria, model_name, tokenizer, adapter_path, lora_rank=8):
@@ -145,7 +143,7 @@ def label_batch_ray_lora(input_path, output_path, criteria, model_name, tokenize
             "enable_lora": True,
             "max_lora_rank": lora_rank,
             "max_loras": 1,
-            "dtype": "half",
+            "dtype": "bfloat16",
             "max_model_len": 4096,
         },
         concurrency=1,
@@ -210,7 +208,12 @@ if __name__ == "__main__":
         output_folder = llm_config['pretrain']['output_folder']
         if use_ray:
             output_file = 'pretrain_predictions_ray.jsonl'
-            label_batch_ray(input_file, os.path.join(output_folder, output_file), criteria, model_name, tokenizer)
+            label_batch_ray(input_file, os.path.join(output_folder, output_file), criteria, model_name)
         else:
+            ray.init(runtime_env={"working_dir": "/home/ray/default/llm-fine-tune-ray"})
             output_file = 'pretrain_predictions.jsonl'
-            label_batch_local(input_file, os.path.join(output_folder, output_file), criteria, model_name, tokenizer)
+            # label_batch_local(input_file, os.path.join(output_folder, output_file), criteria, model_name, tokenizer)
+            result = ray.get(label_batch_local.remote(input_file, criteria, model_name, tokenizer))
+            with open(os.path.join(output_folder, output_file), "w") as fout:
+                for item in result:
+                    fout.write(json.dumps(item) + "\n")
