@@ -1,19 +1,18 @@
 from datasets import load_dataset
 from transformers import (
     AutoTokenizer,
-    BitsAndBytesConfig,
     AutoModelForCausalLM,
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
 )
 import wandb
-import yaml
 import os
+import yaml
 import torch
 from dotenv import load_dotenv
-from peft import get_peft_model, LoraConfig, TaskType, PeftModel
-from scripts.llm_label_sample import label_batch_local
+from peft import get_peft_model, LoraConfig, TaskType
+import ray
 
 
 def tokenize_function(example, tokenizer, max_length):
@@ -65,47 +64,35 @@ def format_for_finetuning(example, criteria, criteria_format):
         "output": example["label"]
     }
 
-if __name__ == "__main__":
+@ray.remote(num_gpus=1)
+def train_pipeline():
     with open("config.yaml", "r") as f:
         config = yaml.safe_load(f)
 
-    model_name = config['pretrain_model']['model']
-    criteria = config['data_process']['criteria']
+    model_name = config['llm_label']['model']
+    criteria = config['criteria']
     criteria_format = {c: { "score": "<int>", "feedback": "<string>" } for c in criteria}
-    out_dir = config['fine_tune']['output_dir']
+    ft_config = config['fine_tune']
+    data_path = ft_config['data_path']
+    out_dir = ft_config['output_path']
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    max_new_tokens = config['pretrain_model']['eval']["max_eval_tokens"]
-
-    # lora_config = LoraConfig(
-    #     r=8,
-    #     lora_alpha=32,
-    #     target_modules='all-linear',
-    #     lora_dropout=0.05,
-    #     bias="none",
-    #     task_type=TaskType.CAUSAL_LM,
-    # )
 
     lora_config = LoraConfig(
         r=16,
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        # target_modules='all-linear',
         lora_alpha=16,
         lora_dropout=0.0,
         bias="none",
         task_type=TaskType.CAUSAL_LM,
     )
 
-    # quantization_config = BitsAndBytesConfig(
-    #     load_in_4bit=True,
-    #     bnb_4bit_quant_type="nf4",
-    #     bnb_4bit_compute_dtype=torch.float16,
-    # )
-
     # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", device_map="auto",)
     model = get_peft_model(model, lora_config)
 
     # Load your dataset (e.g., JSONL -> Dataset)
-    raw_dataset = load_dataset("json", data_files="data/train/clean_label_all_sample_train.jsonl")["train"]
+    raw_dataset = load_dataset("json", data_files=data_path['train'])["train"]
     dataset = raw_dataset.map(lambda x: format_for_finetuning(x, criteria, criteria_format))
 
     # Tokenize
@@ -115,7 +102,7 @@ if __name__ == "__main__":
         batched=False,
     )
 
-    raw_eval_dataset = load_dataset("json", data_files="data/val/clean_label_all_sample_val.jsonl")["train"]
+    raw_eval_dataset = load_dataset("json", data_files=data_path['val'])["train"]
 
     formatted_eval = raw_eval_dataset.map(lambda x: format_for_finetuning(x, criteria, criteria_format))
 
@@ -128,18 +115,10 @@ if __name__ == "__main__":
     # Collator
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    load_dotenv()
-
-    WANDB_API_KEY = os.getenv("WANDB_API_KEY")
-    wandb.login(key=WANDB_API_KEY)
-    run = wandb.init(
-        project="LLM-fine-tune",
-        name="qlora-qwen-finetune",
-    )
     training_args = TrainingArguments(
         output_dir=out_dir,
         num_train_epochs=3,
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=2,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=1,
         learning_rate=1e-4,
@@ -149,14 +128,15 @@ if __name__ == "__main__":
         warmup_ratio=0.05,
         fp16=False,
         bf16=True,
-        dataloader_num_workers=4,
+        dataloader_num_workers=2,
         prediction_loss_only=True,
         eval_strategy="steps",
         eval_steps=120,
+        weight_decay=0.01,
         report_to="wandb",
-        run_name="qlora-llama3-finetune",
+        # report_to="none",
+        run_name="lora-qwen-3b",
         seed=42,
-        gradient_checkpointing=True,
     )
 
     # Trainer
@@ -169,18 +149,19 @@ if __name__ == "__main__":
         data_collator=data_collator,
     )
 
-
-    import torch
     import gc
     torch.cuda.empty_cache()
     gc.collect()
     trainer.train()
 
-    folders = [f for f in os.listdir(out_dir) if f.startswith("checkpoint") and os.path.isdir(os.path.join(out_dir, f))]
-    os.makedirs('predictions', exist_ok=True)
-    for i, f in enumerate(folders, start=1):
-        base_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", quantization_config=quantization_config)
-        peft_model = PeftModel.from_pretrained(base_model, os.path.join(out_dir, f))
-        torch.cuda.empty_cache()
-        gc.collect()
-        label_batch_local("data/test/clean_label_all_sample_test.jsonl", f'predictions/fine_tune_pred_epoch{i+1}.jsonl', criteria, peft_model, tokenizer, max_new_tokens)
+if __name__ == "__main__":
+    load_dotenv()
+    WANDB_API_KEY = os.getenv("WANDB_API_KEY")
+    wandb.login(key=WANDB_API_KEY)
+    run = wandb.init(
+        project="LLM-fine-tune",
+        name="lora-qwen-3b",
+    )
+    ray.init(runtime_env={"working_dir": "/home/ray/default/llm-fine-tune-ray", "pip": ["wandb"]})
+    result_ref = train_pipeline.remote()
+    ray.get(result_ref)
