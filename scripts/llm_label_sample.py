@@ -39,9 +39,58 @@ def generate_local_feedback(model, tokenizer, text, criteria, criteria_format):
     decoded = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
     return decoded
 
-@ray.remote(num_gpus=1)
-def label_batch_local(input_path, criteria, model_name, tokenizer):
+# @ray.remote(num_gpus=1)
+# def label_batch_local(input_path, criteria, model_name, tokenizer):
     
+#     model = AutoModelForCausalLM.from_pretrained(
+#         model_name,
+#         torch_dtype="auto",
+#         device_map="auto",
+#     )
+#     with open(input_path, "r") as f:
+#         lines = [json.loads(l) for l in f if l.strip()]
+#     criteria_format = {c: {"score": "<int>", "feedback": "<string>"} for c in criteria}
+#     results = []
+#     for example in tqdm(lines, desc="Labeling samples (local)"):
+#         transcript = example["text"]
+#         try:
+#             feedback = generate_local_feedback(model, tokenizer, transcript, criteria, criteria_format)
+#             labeled = {"text": transcript, "label": feedback, "id":example["id"]}
+#             results.append(labeled)
+#         except Exception:
+#             print("[Error] Skipping sample")
+#     return results
+
+def generate_local_feedback_batch(model, tokenizer, texts, criteria, criteria_format):
+    prompts = [
+        tokenizer.apply_chat_template(
+            build_prompt(text, criteria, criteria_format),
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        for text in texts
+    ]
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True, padding_side='left').to(model.device)
+    # Generate output for each prompt in the batch
+    generated_ids = model.generate(
+        **inputs,
+        max_new_tokens=256,
+        temperature=0.2
+    )
+    # For each item in batch, trim the prompt part to get only generated output
+    # NOTE: Must calculate actual prompt lengths to slice outputs correctly
+    prompt_lens = [len(tokenizer(p, return_tensors="pt")["input_ids"][0]) for p in prompts]
+    batch_outputs = []
+    for out_ids, prompt_len in zip(generated_ids, prompt_lens):
+        generated = out_ids[prompt_len:]  # Only new tokens
+        text = tokenizer.decode(generated, skip_special_tokens=True)
+        batch_outputs.append(text)
+    return batch_outputs
+
+@ray.remote(num_gpus=1)
+def label_batch_local(input_path, criteria, model_name, tokenizer, batch_size=20):
+    import torch
+    from tqdm import tqdm
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype="auto",
@@ -51,14 +100,16 @@ def label_batch_local(input_path, criteria, model_name, tokenizer):
         lines = [json.loads(l) for l in f if l.strip()]
     criteria_format = {c: {"score": "<int>", "feedback": "<string>"} for c in criteria}
     results = []
-    for example in tqdm(lines, desc="Labeling samples (local)"):
-        transcript = example["text"]
+    for i in tqdm(range(0, len(lines), batch_size), desc="Batch labeling samples (local)"):
+        batch = lines[i:i+batch_size]
+        transcripts = [ex["text"] for ex in batch]
         try:
-            feedback = generate_local_feedback(model, tokenizer, transcript, criteria, criteria_format)
-            labeled = {"text": transcript, "label": feedback, "id":example["id"]}
-            results.append(labeled)
-        except Exception:
-            print("[Error] Skipping sample")
+            batch_feedbacks = generate_local_feedback_batch(model, tokenizer, transcripts, criteria, criteria_format)
+            for example, feedback in zip(batch, batch_feedbacks):
+                labeled = {"text": example["text"], "label": feedback, "id": example["id"]}
+                results.append(labeled)
+        except Exception as e:
+            print(f"[Error] Skipping batch {i}-{i+batch_size}: {e}")
     return results
 
 @ray.remote(num_gpus=1)
@@ -95,7 +146,7 @@ def label_batch_ray(input_path, output_path, criteria, model_name):
             messages=build_prompt(row['text'], criteria, criteria_format),
             sampling_params=dict(
                 temperature=0.2,
-                max_tokens=512,
+                max_tokens=256,
             )
         )
 
@@ -103,10 +154,10 @@ def label_batch_ray(input_path, output_path, criteria, model_name):
         model_source=model_name,
         engine_kwargs={
             "enable_chunked_prefill": True,
-            "max_num_batched_tokens": 16384, #8192
+            "max_num_batched_tokens": 16384*8, #8192
         },
         concurrency=1,
-        batch_size=8,
+        batch_size=128,
     )
     processor = build_llm_processor(
         processor_config,
@@ -131,22 +182,16 @@ def label_batch_ray_lora(input_path, output_path, criteria, model_name, tokenize
     criteria_format = {c: {"score": "<int>", "feedback": "<string>"} for c in criteria}
     with open(input_path, "r") as f:
         lines = [json.loads(l) for l in f if l.strip()]
-    # prompts = [
-    #     {"prompt": tokenizer.apply_chat_template(
-    #         build_prompt(example["text"], criteria, criteria_format),
-    #         tokenize=False,
-    #         add_generation_prompt=True
-    #     ), "text": example["text"]} for example in lines
-    # ]
     prompts = [{"text": example["text"], "id": example["id"]} for example in lines]
     def preprocess(row):
         return dict(
-            # model='VinitT/Commentary-qwen-3B',
+            model='VinitT/Commentary-qwen-3B',
             messages=build_prompt(row['text'], criteria, criteria_format),
             sampling_params=dict(
                 temperature=0.2,
-                max_tokens=512,
-                lora_adapter_name=adapter_path
+                max_tokens=256,
+                detokenize=False,
+                # lora_adapter_name=adapter_path
                 # detokenize=False
             )
         )
@@ -154,16 +199,16 @@ def label_batch_ray_lora(input_path, output_path, criteria, model_name, tokenize
         model_source=model_name,
         engine_kwargs={
             "enable_lora": True,
-            "max_lora_rank": 16,
+            "max_lora_rank": 32,
             "max_loras": 1,
-            "enable_chunked_prefill": True,
+            # "enable_chunked_prefill": True,
             # "max_num_batched_tokens": 16384,
-            'dtype': torch.bfloat16,
-            "max_model_len": 2048,
+            # 'dtype': torch.bfloat16,
+            # "max_model_len": 2048,
         },
         concurrency=1,
-        batch_size=1,
-        dynamic_lora_loading_path=adapter_path,
+        batch_size=128,
+        # dynamic_lora_loading_path=adapter_path,
     )
     processor = build_llm_processor(
         processor_config,
@@ -206,11 +251,11 @@ if __name__ == "__main__":
         folders = [f for f in os.listdir(input_adapter_folder) if f.startswith("checkpoint") and os.path.isdir(os.path.join(input_adapter_folder, f))]
         for i, f in enumerate(folders, start=1):
             if use_ray:
-                output_file = f'fine_tune_predictions_epoch{i+2}_ray.jsonl'
+                output_file = f'fine_tune_predictions_epoch{i}_ray.jsonl'
                 label_batch_ray_lora(input_file, os.path.join(output_folder, output_file), criteria, model_name, tokenizer, os.path.join(input_adapter_folder, f))
             else:
                 ray.init(runtime_env={"working_dir": "/home/ray/default/llm-fine-tune-ray"})
-                output_file = f'fine_tune_predictions_epoch{i+2}.jsonl'
+                output_file = f'fine_tune_predictions_epoch{i}.jsonl'
                 result = ray.get(label_batch_local_lora.remote(input_file, criteria, model_name, os.path.join(input_adapter_folder, f), tokenizer))
                 with open(os.path.join(output_folder, output_file), "w") as fout:
                     for item in result:

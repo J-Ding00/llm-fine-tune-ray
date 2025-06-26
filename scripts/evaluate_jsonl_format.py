@@ -327,7 +327,7 @@ if __name__ == "__main__":
     eval_file_list = config['evaluation']['jsonl_format_in']
     # eval_file_list = [os.path.join(config['evaluation']['jsonl_generated_data_in'], f) for f in os.listdir(config['evaluation']['jsonl_generated_data_in'])]
     output_path = config['evaluation']['jsonl_format_out']
-    criteria = config['data_process']['criteria']
+    criteria = config['criteria']
     score_threshold = config['evaluation']['score_threshold']
     mse = config['evaluation']['mse']
 
@@ -340,7 +340,7 @@ if __name__ == "__main__":
                     print(f"Finished: {file}")
 
         if mse and len(eval_file_list) > 1:
-            mse_scores, msg = compare_multiple_score_mse_bert(
+            mse_scores, msg = compare_multiple_score_mse(
                 generated_files=eval_file_list[:-1],
                 ground_truth_file=eval_file_list[-1],
                 traits=criteria
