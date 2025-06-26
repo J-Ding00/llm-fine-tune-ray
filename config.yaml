@@ -41,22 +41,21 @@ gt_label:
 
 llm_label:
   model: Qwen/Qwen2.5-3B-Instruct
-  adapter: True
+  adapter: False
   use_ray: True
-  input_test_path: data/test/clean_label_all_sample_test.jsonl
+  input_test_path: /mnt/cluster_storage/llm-fine-tune-ray/data/test/clean_label_all_sample_test.jsonl
   pretrain:
-    output_folder: predictions/pretrain
+    output_folder: /mnt/cluster_storage/llm-fine-tune-ray/predictions/pretrain
   fine_tune:
-    input_adapter_folder: /mnt/cluster_storage/checkpoint_000000
-    output_folder: predictions/fine_tune
+    input_adapter_folder: /mnt/cluster_storage/llm-fine-tune-ray/checkpoints_ray/TorchTrainer_2025-06-23_16-16-31/TorchTrainer_19362_00000_0_2025-06-23_16-16-31/checkpoint_000000
+    output_folder: /mnt/cluster_storage/llm-fine-tune-ray/predictions/fine_tune
 
 fine_tune:
   data_path:
-    train: data/train/clean_label_all_sample_train.jsonl
-    val: data/val/clean_label_all_sample_val.jsonl
-    test: data/test/clean_label_all_sample_test.jsonl
-  output_path: /mnt/cluster_storage/checkpoints
-  output_path_ray: /mnt/cluster_storage/checkpoints_ray
+    train: /mnt/cluster_storage/llm-fine-tune-ray/data/train/clean_label_all_sample_train.jsonl
+    val: /mnt/cluster_storage/llm-fine-tune-ray/data/val/clean_label_all_sample_val.jsonl
+    test: /mnt/cluster_storage/llm-fine-tune-ray/data/test/clean_label_all_sample_test.jsonl
+  output_path: /mnt/cluster_storage/llm-fine-tune-ray/checkpoints
 
 criteria: [formality, persuasiveness, enthusiasm, empathy, filler words, transition logic]
 
@@ -67,14 +66,10 @@ evaluation:
   #   data/labeled/generated/label_generated_bad_formality.jsonl,
   #   data/labeled/generated/label_generated_bad_persuasion.jsonl,
   #   data/labeled/generated/label_generated_bad_filler_words.jsonl]
-  mse: True
+  
   # jsonl_format_in: [predictions/pretrain/spretrain_predictions_ray.jsonl, predictions/fine_tune/fine_tune_predictions_epoch1.jsonl, predictions/fine_tune/fine_tune_predictions_epoch2.jsonl, predictions/fine_tune/fine_tune_predictions_epoch3.jsonl, data/test/clean_label_all_sample_test.jsonl]
-  jsonl_format_in: [predictions/pretrain/pretrain_predictions.jsonl, predictions/fine_tune/sfine_tune_predictions_epoch1_ray.jsonl, data/test/clean_label_all_sample_test.jsonl]
+  jsonl_format_in: [/mnt/cluster_storage/llm-fine-tune-ray/predictions/pretrain/pretrain_predictions.jsonl, /mnt/cluster_storage/llm-fine-tune-ray/predictions/fine_tune/sfine_tune_predictions_epoch1_ray.jsonl, /mnt/cluster_storage/llm-fine-tune-ray/data/test/clean_label_all_sample_test.jsonl]
   # jsonl_format_in: [predictions/pretrain/pretrain_predictions.jsonl, data/test/clean_label_all_sample_test.jsonl]
-  jsonl_generated_data_in: data/labeled/generated
   jsonl_format_out: eval/evaluation_metrics1.txt
-  jsonl_generated_data_out: eval/json_generated_evaluation_metrics.txt
-  clean_webtext_data_out: data/labeled/clean_label_openwebtext_sample.jsonl
-  clean_generated_data_out: data/labeled/clean_label_generated_sample.jsonl
-  clean_data_out: data/labeled/clean_label_all_sample.jsonl
+  mse: True
   score_threshold: [6]

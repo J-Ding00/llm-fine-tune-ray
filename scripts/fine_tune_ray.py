@@ -157,6 +157,6 @@ if __name__ == "__main__":
     ray_trainer = TorchTrainer(
         train_func,
         scaling_config=ScalingConfig(num_workers=2, use_gpu=True),
-        run_config=RunConfig(storage_path="/mnt/cluster_storage/checkpoints_ray")
+        run_config=RunConfig(storage_path='/mnt/cluster_storage/llm-fine-tune-ray/checkpoints_ray1')
     )
     result = ray_trainer.fit()

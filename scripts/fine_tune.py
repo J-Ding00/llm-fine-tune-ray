@@ -6,11 +6,11 @@ from transformers import (
     Trainer,
     DataCollatorForLanguageModeling,
 )
-import wandb
+# import wandb
 import os
 import yaml
 import torch
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from peft import get_peft_model, LoraConfig, TaskType
 import ray
 
@@ -133,9 +133,9 @@ def train_pipeline():
         eval_strategy="steps",
         eval_steps=120,
         weight_decay=0.01,
-        report_to="wandb",
-        # report_to="none",
-        run_name="lora-qwen-3b",
+        # report_to="wandb",
+        report_to="none",
+        # run_name="lora-qwen-3b",
         seed=42,
     )
 
@@ -155,13 +155,13 @@ def train_pipeline():
     trainer.train()
 
 if __name__ == "__main__":
-    load_dotenv()
-    WANDB_API_KEY = os.getenv("WANDB_API_KEY")
-    wandb.login(key=WANDB_API_KEY)
-    run = wandb.init(
-        project="LLM-fine-tune",
-        name="lora-qwen-3b",
-    )
+    # load_dotenv()
+    # WANDB_API_KEY = os.getenv("WANDB_API_KEY")
+    # wandb.login(key=WANDB_API_KEY)
+    # run = wandb.init(
+    #     project="LLM-fine-tune",
+    #     name="lora-qwen-3b",
+    # )
     ray.init(runtime_env={"working_dir": "/home/ray/default/llm-fine-tune-ray"})
     result_ref = train_pipeline.remote()
     ray.get(result_ref)
