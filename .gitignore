@@ -12,7 +12,7 @@ venv/
 data/
 
 # Eval
-eval/
+# eval/
 
 # Model
 models/

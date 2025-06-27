@@ -1,0 +1,318 @@
+
+predictions/pretrain/spretrain_predictions_ray.jsonl check with score threshold 6:
+Valid samples: 118/120
+Invalid samples: 2
+
+Sample errors (up to 10 shown):
+  Line 33: Unrecoverable JSON decode error: Expecting ',' delimiter: line 5 column 99 (char 648)
+  Line 102: Missing field: filler words
+
+Scoring summary:
+
+Trait: formality
+  Avg Score: 4.77
+  >6: 4 | <=6: 114
+  Min: 2, Max: 9
+
+Trait: persuasiveness
+  Avg Score: 5.99
+  >6: 52 | <=6: 66
+  Min: 2, Max: 8
+
+Trait: enthusiasm
+  Avg Score: 4.69
+  >6: 30 | <=6: 88
+  Min: 1, Max: 9
+
+Trait: empathy
+  Avg Score: 4.02
+  >6: 11 | <=6: 107
+  Min: 1, Max: 9
+
+Trait: filler words
+  Avg Score: 2.80
+  >6: 1 | <=6: 117
+  Min: 1, Max: 7
+
+Trait: transition logic
+  Avg Score: 6.86
+  >6: 86 | <=6: 32
+  Min: 2, Max: 9
+
+
+
+predictions/fine_tune/fine_tune_predictions_epoch1.jsonl check with score threshold 6:
+Valid samples: 120/120
+Invalid samples: 0
+
+Sample errors (up to 10 shown):
+
+Scoring summary:
+
+Trait: formality
+  Avg Score: 7.09
+  >6: 87 | <=6: 33
+  Min: 4, Max: 9
+
+Trait: persuasiveness
+  Avg Score: 6.65
+  >6: 71 | <=6: 49
+  Min: 3, Max: 9
+
+Trait: enthusiasm
+  Avg Score: 5.51
+  >6: 26 | <=6: 94
+  Min: 3, Max: 9
+
+Trait: empathy
+  Avg Score: 5.60
+  >6: 26 | <=6: 94
+  Min: 4, Max: 9
+
+Trait: filler words
+  Avg Score: 8.61
+  >6: 114 | <=6: 6
+  Min: 5, Max: 10
+
+Trait: transition logic
+  Avg Score: 6.67
+  >6: 82 | <=6: 38
+  Min: 4, Max: 9
+
+
+
+predictions/fine_tune/fine_tune_predictions_epoch2.jsonl check with score threshold 6:
+Valid samples: 120/120
+Invalid samples: 0
+
+Sample errors (up to 10 shown):
+
+Scoring summary:
+
+Trait: formality
+  Avg Score: 6.89
+  >6: 79 | <=6: 41
+  Min: 4, Max: 9
+
+Trait: persuasiveness
+  Avg Score: 6.63
+  >6: 72 | <=6: 48
+  Min: 3, Max: 8
+
+Trait: enthusiasm
+  Avg Score: 5.69
+  >6: 33 | <=6: 87
+  Min: 2, Max: 9
+
+Trait: empathy
+  Avg Score: 5.44
+  >6: 22 | <=6: 98
+  Min: 3, Max: 9
+
+Trait: filler words
+  Avg Score: 8.78
+  >6: 117 | <=6: 3
+  Min: 5, Max: 10
+
+Trait: transition logic
+  Avg Score: 6.46
+  >6: 59 | <=6: 61
+  Min: 4, Max: 8
+
+
+
+predictions/fine_tune/fine_tune_predictions_epoch3.jsonl check with score threshold 6:
+Valid samples: 120/120
+Invalid samples: 0
+
+Sample errors (up to 10 shown):
+
+Scoring summary:
+
+Trait: formality
+  Avg Score: 6.87
+  >6: 77 | <=6: 43
+  Min: 4, Max: 9
+
+Trait: persuasiveness
+  Avg Score: 6.61
+  >6: 71 | <=6: 49
+  Min: 3, Max: 9
+
+Trait: enthusiasm
+  Avg Score: 5.50
+  >6: 28 | <=6: 92
+  Min: 2, Max: 9
+
+Trait: empathy
+  Avg Score: 5.33
+  >6: 20 | <=6: 100
+  Min: 3, Max: 9
+
+Trait: filler words
+  Avg Score: 8.59
+  >6: 114 | <=6: 6
+  Min: 5, Max: 10
+
+Trait: transition logic
+  Avg Score: 6.43
+  >6: 61 | <=6: 59
+  Min: 4, Max: 8
+
+
+
+data/test/clean_label_all_sample_test.jsonl check with score threshold 6:
+Valid samples: 120/120
+Invalid samples: 0
+
+Sample errors (up to 10 shown):
+
+Scoring summary:
+
+Trait: formality
+  Avg Score: 6.90
+  >6: 84 | <=6: 36
+  Min: 4, Max: 9
+
+Trait: persuasiveness
+  Avg Score: 6.53
+  >6: 64 | <=6: 56
+  Min: 3, Max: 9
+
+Trait: enthusiasm
+  Avg Score: 5.62
+  >6: 30 | <=6: 90
+  Min: 2, Max: 9
+
+Trait: empathy
+  Avg Score: 5.61
+  >6: 30 | <=6: 90
+  Min: 3, Max: 10
+
+Trait: filler words
+  Avg Score: 8.36
+  >6: 109 | <=6: 11
+  Min: 2, Max: 10
+
+Trait: transition logic
+  Avg Score: 6.45
+  >6: 63 | <=6: 57
+  Min: 3, Max: 8
+
+
+
+MSE and BERTScore Metrics across generated files:
+
+Generated File: predictions/pretrain/spretrain_predictions_ray.jsonl
+  formality: 6.1525
+  formality_bertscore_precision: 0.8910
+  formality_bertscore_recall: 0.8969
+  formality_bertscore_f1: 0.8939
+  persuasiveness: 1.6525
+  persuasiveness_bertscore_precision: 0.9015
+  persuasiveness_bertscore_recall: 0.8985
+  persuasiveness_bertscore_f1: 0.8999
+  enthusiasm: 3.3898
+  enthusiasm_bertscore_precision: 0.9072
+  enthusiasm_bertscore_recall: 0.9050
+  enthusiasm_bertscore_f1: 0.9060
+  empathy: 4.8898
+  empathy_bertscore_precision: 0.8994
+  empathy_bertscore_recall: 0.8993
+  empathy_bertscore_f1: 0.8993
+  filler words: 34.9746
+  filler words_bertscore_precision: 0.8795
+  filler words_bertscore_recall: 0.8979
+  filler words_bertscore_f1: 0.8885
+  transition logic: 1.8220
+  transition logic_bertscore_precision: 0.9044
+  transition logic_bertscore_recall: 0.9076
+  transition logic_bertscore_f1: 0.9059
+  overall_avg_mse: 8.8136
+  overall_avg_bertscore_f1: 0.8989
+
+Generated File: predictions/fine_tune/fine_tune_predictions_epoch1.jsonl
+  formality: 1.1102
+  formality_bertscore_precision: 0.9308
+  formality_bertscore_recall: 0.9277
+  formality_bertscore_f1: 0.9292
+  persuasiveness: 1.1102
+  persuasiveness_bertscore_precision: 0.9163
+  persuasiveness_bertscore_recall: 0.9131
+  persuasiveness_bertscore_f1: 0.9146
+  enthusiasm: 1.2542
+  enthusiasm_bertscore_precision: 0.9213
+  enthusiasm_bertscore_recall: 0.9184
+  enthusiasm_bertscore_f1: 0.9198
+  empathy: 1.6610
+  empathy_bertscore_precision: 0.9076
+  empathy_bertscore_recall: 0.9068
+  empathy_bertscore_f1: 0.9072
+  filler words: 2.1780
+  filler words_bertscore_precision: 0.9394
+  filler words_bertscore_recall: 0.9367
+  filler words_bertscore_f1: 0.9380
+  transition logic: 0.8220
+  transition logic_bertscore_precision: 0.9336
+  transition logic_bertscore_recall: 0.9314
+  transition logic_bertscore_f1: 0.9325
+  overall_avg_mse: 1.3559
+  overall_avg_bertscore_f1: 0.9235
+
+Generated File: predictions/fine_tune/fine_tune_predictions_epoch2.jsonl
+  formality: 0.6695
+  formality_bertscore_precision: 0.9268
+  formality_bertscore_recall: 0.9255
+  formality_bertscore_f1: 0.9261
+  persuasiveness: 0.9068
+  persuasiveness_bertscore_precision: 0.9150
+  persuasiveness_bertscore_recall: 0.9145
+  persuasiveness_bertscore_f1: 0.9147
+  enthusiasm: 1.0847
+  enthusiasm_bertscore_precision: 0.9198
+  enthusiasm_bertscore_recall: 0.9204
+  enthusiasm_bertscore_f1: 0.9201
+  empathy: 1.4492
+  empathy_bertscore_precision: 0.9092
+  empathy_bertscore_recall: 0.9095
+  empathy_bertscore_f1: 0.9093
+  filler words: 2.1186
+  filler words_bertscore_precision: 0.9363
+  filler words_bertscore_recall: 0.9345
+  filler words_bertscore_f1: 0.9354
+  transition logic: 0.7203
+  transition logic_bertscore_precision: 0.9290
+  transition logic_bertscore_recall: 0.9296
+  transition logic_bertscore_f1: 0.9293
+  overall_avg_mse: 1.1582
+  overall_avg_bertscore_f1: 0.9225
+
+Generated File: predictions/fine_tune/fine_tune_predictions_epoch3.jsonl
+  formality: 0.6780
+  formality_bertscore_precision: 0.9328
+  formality_bertscore_recall: 0.9301
+  formality_bertscore_f1: 0.9314
+  persuasiveness: 0.8136
+  persuasiveness_bertscore_precision: 0.9174
+  persuasiveness_bertscore_recall: 0.9169
+  persuasiveness_bertscore_f1: 0.9171
+  enthusiasm: 1.2119
+  enthusiasm_bertscore_precision: 0.9216
+  enthusiasm_bertscore_recall: 0.9213
+  enthusiasm_bertscore_f1: 0.9214
+  empathy: 1.5508
+  empathy_bertscore_precision: 0.9113
+  empathy_bertscore_recall: 0.9098
+  empathy_bertscore_f1: 0.9105
+  filler words: 2.2712
+  filler words_bertscore_precision: 0.9333
+  filler words_bertscore_recall: 0.9315
+  filler words_bertscore_f1: 0.9323
+  transition logic: 0.5593
+  transition logic_bertscore_precision: 0.9388
+  transition logic_bertscore_recall: 0.9363
+  transition logic_bertscore_f1: 0.9375
+  overall_avg_mse: 1.1808
+  overall_avg_bertscore_f1: 0.9250
+
+Compared 118/120 lines successfully (only counting lines valid in all files).

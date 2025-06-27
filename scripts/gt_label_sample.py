@@ -67,6 +67,6 @@ if __name__ == "__main__":
     output_folder = ds_config['output_folder']
 
     criteria = config['criteria']
-    model = config['openai']['generate_model']
+    model = config['openai']['eval_model']
 
     label_batch(input_folder, output_folder, criteria, model)
